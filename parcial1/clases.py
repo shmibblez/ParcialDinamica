@@ -3,16 +3,15 @@ from pyquaternion import Quaternion
 
 
 class Subspace:
-    """
-    x, y, z - posicion de origen en parent
-    parent - subespacio en el que estamos,
-            si null, es un subespacio dentro del espacio base
-    ax, ay, az - angulos a los cuales cada eje esta rotado
-            - ej: si el eje x esta apuntando hacia uno, y ax = 10,
-            rotaria clockwise 10 grados
-    """
-
     def __init__(self, x, y, z, ax, ay, az, parentSpace: "Subspace|None"):
+        """
+        x, y, z - posicion de origen en parent
+        parent - subespacio en el que estamos,
+                si null, es un subespacio dentro del espacio base
+        ax, ay, az - angulos a los cuales cada eje esta rotado
+                - ej: si el eje x esta apuntando hacia uno, y ax = 10,
+                rotaria clockwise 10 grados
+        """
         self.parent = parentSpace
         self.x = x
         self.y = y
@@ -50,11 +49,10 @@ class Punto:
         self.z = z
         self.parentSpace = parentSpace
 
-    """
-    returns start point coordinates and vector in top-most space
-    """
-
     def puntoAbs(self):
+        """
+        returns start point coordinates and vector in top-most space
+        """
         start = [0, 0, 0]
         vec = [self.x, self.y, self.z]
         parentSpace = self.parentSpace
