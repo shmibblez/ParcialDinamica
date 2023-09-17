@@ -45,6 +45,13 @@ class Subspace:
             Subspace.__contexto__,
         )
 
+    def vecOrigenRel(self):
+        """
+        retorna vector de coordenadas con respecto al
+                marco dentro del cual esta
+        """
+        return Punto(self.x, self.y, self.z, self.parent)
+
     # def xAbs(self):
     #     return (self.parent.xAbs() if self.parent else 0) + self.x
 
@@ -70,14 +77,14 @@ class Subspace:
         punto es lista
         """
         if sub == None:
-            return punto
+            return np.array(punto)
         aplicado = Subspace.__aplicar__(punto, sub.parent)
         # restar origen
-        aplicado = np.subtract(aplicado, sub.vecOrigen())
+        aplicado = np.subtract(aplicado, [sub.x, sub.y, sub.z])
         # luego rotar
-        xQuat = Quaternion(axis=[1, 0, 0], angle=sub.ax)
-        yQuat = Quaternion(axis=[0, 1, 0], angle=sub.ay)
-        zQuat = Quaternion(axis=[0, 0, 1], angle=sub.az)
+        xQuat = Quaternion(axis=[1, 0, 0], degrees=sub.ax)
+        yQuat = Quaternion(axis=[0, 1, 0], degrees=sub.ay)
+        zQuat = Quaternion(axis=[0, 0, 1], degrees=sub.az)
         aplicado = xQuat.rotate(aplicado)
         aplicado = yQuat.rotate(aplicado)
         aplicado = zQuat.rotate(aplicado)
@@ -116,9 +123,9 @@ class Punto:
         vec = [self.x, self.y, self.z]
         parentSpace: Subspace | None = self.parentSpace
         while parentSpace != None:
-            xQuat = Quaternion(axis=[1, 0, 0], angle=-parentSpace.ax)
-            yQuat = Quaternion(axis=[0, 1, 0], angle=-parentSpace.ay)
-            zQuat = Quaternion(axis=[0, 0, 1], angle=-parentSpace.az)
+            xQuat = Quaternion(axis=[1, 0, 0], degrees=-parentSpace.ax)
+            yQuat = Quaternion(axis=[0, 1, 0], degrees=-parentSpace.ay)
+            zQuat = Quaternion(axis=[0, 0, 1], degrees=-parentSpace.az)
             start = xQuat.rotate(start)
             start = yQuat.rotate(start)
             start = zQuat.rotate(start)
@@ -130,7 +137,6 @@ class Punto:
 
         start = np.array(start)
         vec = np.array(vec)
-
         start = Subspace.__aplicar__(start, Subspace.__contexto__)
         vec = Subspace.__aplicar__(vec, Subspace.__contexto__)
         return (
