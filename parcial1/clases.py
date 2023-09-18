@@ -77,19 +77,23 @@ class Subspace:
         punto es lista
         """
         if sub == None:
+            # print(">saliendo aplicar")
             return np.array(punto)
-        aplicado = Subspace.__aplicar__(punto, sub.parent)
+        subVec = Subspace.__aplicar__(punto, sub.parent)
         # restar origen
-        aplicado = np.subtract(aplicado, [sub.x, sub.y, sub.z])
+        # print("0antes aplicar: {}".format(aplicado))
+        subVec = np.subtract(subVec, [sub.x, sub.y, sub.z])
         # luego rotar
-        xQuat = Quaternion(axis=[1, 0, 0], degrees=sub.ax)
-        yQuat = Quaternion(axis=[0, 1, 0], degrees=sub.ay)
-        zQuat = Quaternion(axis=[0, 0, 1], degrees=sub.az)
-        aplicado = xQuat.rotate(aplicado)
-        aplicado = yQuat.rotate(aplicado)
-        aplicado = zQuat.rotate(aplicado)
+        zQuat = Quaternion(axis=[0, 0, 1], degrees=-sub.az)
+        yQuat = Quaternion(axis=[0, 1, 0], degrees=-sub.ay)
+        xQuat = Quaternion(axis=[1, 0, 0], degrees=-sub.ax)
+        # print("*antes aplicar: {}".format(aplicado))
+        subVec = zQuat.rotate(subVec)
+        subVec = yQuat.rotate(subVec)
+        subVec = xQuat.rotate(subVec)
+        # print("*luego aplicar: {}".format(aplicado))
 
-        return np.array(aplicado)
+        return np.array(subVec)
 
     def aplicar(self, punto: list[float]):
         """
@@ -117,22 +121,28 @@ class Punto:
         """
         returns (start point coordinates, vector in top-most space)
                 vector in top-most space is the same as vector in subspace,
-                just in top-most space (diff coordinate sistem)
+                just in top-most space (diff coordinate system)
         """
         start = [0, 0, 0]
         vec = [self.x, self.y, self.z]
         parentSpace: Subspace | None = self.parentSpace
+        # print("parentSpace: " + str(parentSpace))
         while parentSpace != None:
+            # print("parent space origen abs: {}".format(parentSpace.vecOrigen()))
+            # print("parent space origen rel: {}".format(parentSpace.vecOrigenRel().p()))
             xQuat = Quaternion(axis=[1, 0, 0], degrees=-parentSpace.ax)
             yQuat = Quaternion(axis=[0, 1, 0], degrees=-parentSpace.ay)
             zQuat = Quaternion(axis=[0, 0, 1], degrees=-parentSpace.az)
-            start = xQuat.rotate(start)
-            start = yQuat.rotate(start)
-            start = zQuat.rotate(start)
+            # add parent vec to start
+            start = np.add(np.array(start), parentSpace.vecOrigen())
+            # no toca rotar punto de referencia
+            # start = xQuat.rotate(start)
+            # start = yQuat.rotate(start)
+            # start = zQuat.rotate(start)
+            # rotate vector
             vec = xQuat.rotate(vec)
             vec = yQuat.rotate(vec)
             vec = zQuat.rotate(vec)
-            start = np.add(start, parentSpace.vecOrigen())
             parentSpace = parentSpace.parent
 
         start = np.array(start)

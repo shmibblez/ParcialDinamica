@@ -1,6 +1,7 @@
 #!/.venv/bin/python3
 import os
 import sys
+import time
 import numpy as np
 import numpy.linalg as lin
 import matplotlib.pyplot as plt
@@ -39,15 +40,14 @@ tolerancia = 0.001  # 0.001 (1mm)
 dt = 1
 
 
-# posiciones iniciales de marco b (cambian en el tiempo)
-b_x = 0
-b_y = 0
-b_z = 0
+piso = Subspace(0, 0, 0, 0, 0, 0, None)
 # posiciones y angulo en y depende de posicion de la bici
-b = Subspace(b_x, b_y, b_z, 0, 0, theta, None)
+b = Subspace(10, 10, 10, 0, 0, theta, piso)
+# bv se encarga de voltear bici
+bv = Subspace(0, 0, 0, 0, 0, theta, b)
 # posiciones de marco ab no cambian
 # angulo cambia dependiendo de angulo de manuvrio (rueda delantera debe tocar piso)
-ab = Subspace(0, 0, 0, 0, -psi, 0, b)
+ab = Subspace(0, 0, 0, 0, -psi, 0, bv)
 # posiciones de marco f no cambian
 # angulo decidido por beta (angulo tenedor)
 f = Subspace(l, 0, r, 0, -beta, 0, ab)
@@ -69,6 +69,8 @@ def encontrarPuntoRuedaDelantera():
     # vectores para definir plano afx-afz en espacio base (v1 y v2)
     v1 = Punto(1, 0, 0, af).puntoAbs()[1].p()
     v2 = Punto(0, 0, 1, af).puntoAbs()[1].p()
+    # time.sleep(1)
+    # print("encontrarPuntoRuedaDelantera(), v1: {}".format(v1))
     # proyectar z_dn a plano v1-v2. Esta proyeccion se utiliza para encontrar el
     # punto mas bajo de la rueda (donde tocaria el piso)
     proy = v1 * (np.dot(v1, z_dn)) + v2 * (np.dot(v2, z_dn))
@@ -162,6 +164,8 @@ def actualizarPosicion():
     la bici se puede trasladar en el plano x-y
     y puede rotar en el eje z como eje
     """
+    global theta
+
     Subspace.definirContexto(b)
     # la linea perpendicular a la rueda proyectada al plano
     # abx-aby siempre sera el mismo eje y en este plano
@@ -170,77 +174,94 @@ def actualizarPosicion():
     # interseccion co el eje y en este plano, y asi el centro
     # instantaneo y la velocidad de este vector
     v3 = encontrarPuntoRuedaDelantera()
+    Subspace.definirContexto(b)
     # representar plano bx-by
     v4 = Punto(1, 0, 0, b).puntoAbs()[1].p()
     v5 = Punto(0, 1, 0, b).puntoAbs()[1].p()
     # proyectar v3 a plano v4-v5
-    direccion = v4 * (np.dot(v4, v3)) + v5 * (np.dot(v5, v3))
-    #
+    proy = v4 * (np.dot(v4, v3)) + v5 * (np.dot(v5, v3))
+    # angulo entre eje y de b y proy
+    b_y = Punto(0, 1, 0, b).puntoAbs()[1].p()
     centro_rueda = Punto(0, 0, 0, f).puntoAbs()[0].p()
     v6 = centro_rueda + v3
     x1 = v6[0]
     y1 = v6[1]
-    t = -x1 / direccion[0]
+    t = -x1 / proy[0]
     # radio del centro instantaneo de rotacion
-    radio = x1 + direccion[1] * t
+    radio = x1 + proy[1] * t
     # angle_between = np.arccos(
     #     np.dot(direccion, [1, 0, 0]) / (lin.norm(direccion) * lin.norm([1, 0, 0])),
     # )
     # encontrar cantidad que se movera la bici
-    vel_rueda_trasera = omega * r
-    ang_vel = radio * vel_rueda_trasera
+    # velocidad rueda trasera
+    v_rueda_trasera = omega * r
+    # velocidad angular de bicicleta vista desde arriba
+    omega_centro_instantaneo = radio * v_rueda_trasera
     # cambio de angulo en dt
-    dtheta = ang_vel * dt
+    dtheta = omega_centro_instantaneo * dt
     zQuat = Quaternion(axis=[0, 0, 1], degrees=dtheta)
     rotado = np.array(zQuat.rotate([0, v6[0] + radio, 0]))
     rotado = np.abs(rotado)
     dx = rotado[0]
     dy = -rotado[1] if phi < 0 else rotado[1]
 
-    global theta
     theta += dtheta
     if theta > 360:
         theta -= 360
-    b.x += dx
-    b.y += dy
-    b.az = theta
+    # b.x += 1
+    # b.y += 1
+    b.az += 45
+    time.sleep(1)
+    Subspace.definirContexto(None)
+    print(
+        "YEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
+    )
+    print(
+        "actualizarPosicion(), b: {}, b.angulos: {}, b->piso: {}".format(
+            [b.x, b.y, b.z], [b.ax, b.ay, b.az], Punto(1, 1, 1, b).puntoAbs()[1].p()
+        )
+    )
+    print(
+        "ZZZZZZZZZZZYEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
+    )
+    exit()
 
 
-fig = plt.figure()
-ax = fig.add_subplot(1, 1, 1)
-x_data = []
-y_data = []
-(line,) = plt.plot_date(x_data, y_data, "-")
-t = 0
+# fig = plt.figure()
+# ax = fig.add_subplot(1, 1, 1)
+# x_data = []
+# y_data = []
+# (line,) = plt.plot(x_data, y_data)
+# t = 0
 
 
-def update(frame):
-    actualizarPosicion()
-    ajustarPsi()
-    Subspace.definirContexto(b)
-    o_b = ab.vecOrigen()
-    # Subspace.definirContexto(ab)
-    pos2 = ab.vecOrigen()
-    print("------------------------------")
-    global x_data, y_data, t
-    t += dt
-    x_data.append(t)
-    y_data.append(o_b[0])
-    x_data = x_data[-100:]
-    y_data = y_data[-100:]
-    # ax.clear()
-    # ax.plot(x_data, y_data)
-    plt.title("yeet")
-    plt.ylabel("FUCK")
-    plt.xlabel("tiempo [s]")
-    line.set_data(x_data, y_data)
-    fig.gca().relim()
-    fig.gca().autoscale_view()
-    return line
+# def update(frame):
+#     actualizarPosicion()
+#     ajustarPsi()
+#     Subspace.definirContexto(b)
+#     o_b = ab.vecOrigen()
+#     # Subspace.definirContexto(ab)
+#     pos2 = ab.vecOrigen()
+#     # print("theta: {}".format(theta))
+#     global x_data, y_data, t
+#     t += dt
+#     x_data.append(t)
+#     y_data.append(theta)
+#     x_data = x_data[-20:]
+#     y_data = y_data[-20:]
+#     # ax.clear()
+#     # ax.plot(x_data, y_data)
+#     plt.title("yeet")
+#     plt.ylabel("FUCK")
+#     plt.xlabel("tiempo [s]")
+#     line.set_data(x_data, y_data)
+#     fig.gca().relim()
+#     fig.gca().autoscale_view()
+#     return line
 
 
-animation = anim.FuncAnimation(fig, update, interval=50, cache_frame_data=False)  # type: ignore
-plt.show()
+# animation = anim.FuncAnimation(fig, update, interval=50, cache_frame_data=False)  # type: ignore
+# plt.show()
 
 while True:
     actualizarPosicion()
@@ -249,6 +270,6 @@ while True:
     pos = b.vecOrigen()
     # Subspace.definirContexto(ab)
     pos2 = ab.vecOrigen()
-    print("------------------------------")
+    # print("------------------------------")
     # print("b.x: {}, b.y: {}, b.z: {}".format(pos[0], pos[1], pos[2]))
     # print("ab.x: {}, ab.y: {}, ab.z: {}".format(pos2[0], pos2[1], pos2[2]))
