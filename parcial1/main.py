@@ -223,6 +223,17 @@ def actualizarPosicion():
     dx = rotado[0]
     dy = -rotado[1] if phi < 0 else rotado[1]
 
+    # vector de velocidad
+    v7 = Punto(1, 0, 0, b).puntoAbs().p()
+    v7 = v7 / lin.norm(v7)
+    v7 = np.multiply(v7, v_rueda_trasera)
+    # vector de velocidad en mitad de bicicleta
+    v8 = Punto(1, 0, 0, b).puntoAbs().p()
+    v8 = v8 / lin.norm(v8)
+    rot = Quaternion(axis=[0, 0, 1], degrees=dtheta)
+    v8 = rot.rotate(v8)
+    v8 = None
+
     theta += dtheta
     valores_theta.append(theta)
     valores_velocidad_x.append(v_rueda_trasera * np.cos(np.deg2rad(theta)))
@@ -265,7 +276,7 @@ g6 = fig.add_subplot(2, 3, 6)
 
 
 def update(frame):
-    time.sleep(0.25)
+    time.sleep(0.1)
     # ajustar psi y posicion
     ajustarPsi()
     actualizarPosicion()
