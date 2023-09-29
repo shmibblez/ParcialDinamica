@@ -18,9 +18,9 @@ sys.setrecursionlimit(100)
 # parametros bici (longitud en metros, angulos en grados,
 # tiempo en segundos, velocidad angular en deg/s)
 # (variable - seleccionar) angulo de inclinacion / roll
-rho = 20  # [-45, 45]
+rho = 40  # [-45, 45]
 # (variable - seleccionar) angulo manuvrio
-phi = 10  # [-40, 40]
+phi = 40  # [-40, 40]
 # (variable - seleccionar) velocidad angular rueda trasera
 omega = 100  # [0.1, 100]
 # (constante) longitud entre ruedas
@@ -45,7 +45,7 @@ piso = Subspace(0, 0, 0, 0, 0, 0, None, "piso")
 b = Subspace(0, 0, 0, 0, 0, theta, piso, "b")
 # posiciones de marco ab no cambian
 # angulo cambia dependiendo de angulo de manuvrio (rueda delantera debe tocar piso)
-ab = Subspace(0, 0, 0, 0, -psi, 0, b, "ab")
+ab = Subspace(0, 0, 0, rho, -psi, 0, b, "ab")
 # posiciones de marco f no cambian
 # angulo decidido por beta (angulo tenedor)
 f = Subspace(l, 0, r, 0, -beta, 0, ab, "f")
@@ -97,6 +97,7 @@ def ajustarPsi():
     while n < 20:
         # punto en centro de af (centro de rueda delantera)
         centro_rueda = Punto(0, 0, 0, f).puntoAbs().p()
+        # print("centro rueda: {}".format(centro_rueda))
         v3 = encontrarPuntoRuedaDelantera()
         # vector de origen a punto que deberia tocar piso (dentro de plano afx-afz)
         v4 = centro_rueda + v3
@@ -120,7 +121,7 @@ def ajustarPsi():
         # si rueda de bici esta dentro de rango, no hay
         # necesidad de rotar bici, terminar de ajustar
         if np.abs(v4[2]) <= tolerancia:
-            print("ajustarPsi(), v3: {}, centro rueda: {}".format(v3, centro_rueda))
+            # print("nuevo centro rueda: {}, v4[2]: {}".format(centro_rueda, v4[2]))
             break
         # interseccion entre planos abz-abx y el plano formado por by-v4
         # el eje y del plano ab es ortogonal a abz-abx
@@ -130,6 +131,7 @@ def ajustarPsi():
         b_y = np.subtract(
             Punto(0, 1, 0, b).puntoAbs().p(), Punto(0, 0, 0, b).puntoAbs().p()
         )
+        # print("norm ort1: {}, norm b_y: {}".format(lin.norm(ort1), lin.norm(b_y)))
         ort2 = np.cross(b_y, v4)
         # v5 es interseccion de planos
         v5 = np.cross(ort1, ort2)
@@ -163,7 +165,16 @@ def ajustarPsi():
         elif diff > 0:
             ab.ay -= angulo_rotacion
         n += 1
-        angulo_rotacion /= 2
+        angulo_rotacion /= 1.5
+
+
+valores_tiempo = []
+valores_velocidad_x = []
+valores_velocidad_y = []
+valores_x = []
+valores_y = []
+valores_theta = []
+t = 0
 
 
 def actualizarPosicion():
@@ -213,75 +224,129 @@ def actualizarPosicion():
     dy = -rotado[1] if phi < 0 else rotado[1]
 
     theta += dtheta
+    valores_theta.append(theta)
+    valores_velocidad_x.append(v_rueda_trasera * np.cos(np.deg2rad(theta)))
+    valores_velocidad_y.append(v_rueda_trasera * np.sin(np.deg2rad(theta)))
     if theta > 360:
         theta -= 360
-    # b.x += 1
-    # b.y += 1
-    b.az += 95
-    time.sleep(1)
-    Subspace.definirContexto(f)
-    # print(
-    #     "YEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
-    # )
-    # print(
-    #     "actualizarPosicion(), b: {}, b.angulos: {}, b->piso (start): {}, b->piso (vec): {}".format(
-    #         b.vecOrigen(),
-    #         [b.ax, b.ay, b.az],
-    #         Punto(0, 0, 0, f).puntoAbs()[0].p(),
-    #         Punto(0, 0, 0, f).puntoAbs()[1].p(),
-    #     )
-    # )
-    # print(
-    #     "ZZZZZZZZZZZYEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
-    # )
-    # exit()
+    b.x += 10 * np.cos(np.deg2rad(b.az))
+    b.y += 10 * np.sin(np.deg2rad(b.az))
+    b.az = theta
+    valores_x.append(b.x)
+    valores_y.append(b.y)
+    print("theta: {}, v_rueda_trasera: {}".format(theta, v_rueda_trasera))
+    Subspace.definirContexto(piso)
+    global valores_tiempo
 
 
-# fig = plt.figure()
-# ax = fig.add_subplot(1, 1, 1)
-# x_data = []
-# y_data = []
-# (line,) = plt.plot(x_data, y_data)
-# t = 0
+fig = plt.figure()
+# set the spacing between subplots
+plt.subplots_adjust(
+    left=0.1,
+    bottom=0.1,
+    right=0.9,
+    top=0.9,
+    wspace=0.4,
+    hspace=0.4,
+)
+g1 = fig.add_subplot(2, 3, 1)
+g2 = fig.add_subplot(2, 3, 4)
+g3 = fig.add_subplot(2, 3, 2)
+g4 = fig.add_subplot(2, 3, 5)
+g5 = fig.add_subplot(2, 3, 3)
+g6 = fig.add_subplot(2, 3, 6)
+(line,) = plt.plot(valores_tiempo, valores_velocidad_x)
+(l1,) = g1.plot(valores_tiempo, valores_x)
+(l2,) = g2.plot(valores_tiempo, valores_x)
+(l3,) = g3.plot(valores_tiempo, valores_velocidad_x)
+(l4,) = g4.plot(valores_tiempo, valores_velocidad_y)
+(l5,) = g5.plot(valores_x, valores_y)
+(l6,) = g6.plot(valores_tiempo, valores_velocidad_y)
 
 
-# def update(frame):
-#     actualizarPosicion()
-#     ajustarPsi()
-#     Subspace.definirContexto(b)
-#     o_b = ab.vecOrigen()
-#     # Subspace.definirContexto(ab)
-#     pos2 = ab.vecOrigen()
-#     # print("theta: {}".format(theta))
-#     global x_data, y_data, t
-#     t += dt
-#     x_data.append(t)
-#     y_data.append(theta)
-#     x_data = x_data[-20:]
-#     y_data = y_data[-20:]
-#     # ax.clear()
-#     # ax.plot(x_data, y_data)
-#     plt.title("yeet")
-#     plt.ylabel("FUCK")
-#     plt.xlabel("tiempo [s]")
-#     line.set_data(x_data, y_data)
-#     fig.gca().relim()
-#     fig.gca().autoscale_view()
-#     return line
-
-
-# animation = anim.FuncAnimation(fig, update, interval=50, cache_frame_data=False)  # type: ignore
-# plt.show()
-
-while True:
+def update(frame):
+    time.sleep(0.25)
+    # ajustar psi y posicion
     ajustarPsi()
     actualizarPosicion()
-    time.sleep(1)
-    Subspace.definirContexto(None)
-    pos = b.vecOrigen()
-    # Subspace.definirContexto(ab)
-    pos2 = ab.vecOrigen()
-    time.sleep(1)
-    # print("------------------------------")
-    # print("b.x: {}, b.y: {}, b.z: {}".format(pos[0], pos[1], pos[2]))
-    # print("ab.x: {}, ab.y: {}, ab.z: {}".format(pos2[0], pos2[1], pos2[2]))
+
+    global t, valores_tiempo, valores_velocidad_x, valores_velocidad_y, valores_x, valores_y, valores_theta
+    t += dt
+    valores_tiempo.append(t)
+
+    n_elementos = 20
+    valores_tiempo = valores_tiempo[-n_elementos:]
+    valores_velocidad_x = valores_velocidad_x[-n_elementos:]
+    valores_velocidad_y = valores_velocidad_y[-n_elementos:]
+    valores_x = valores_x[-n_elementos:]
+    valores_y = valores_y[-n_elementos:]
+    valores_theta = valores_theta[-n_elementos:]
+    # ax.clear()
+    # ax.plot(x_data, y_data)
+    # plt.title("valores")
+    # plt.ylabel("velocidad en y [m/s]")
+    # plt.xlabel("tiempo [s]")
+    # fig.gca().relim()
+    # fig.gca().autoscale_view()
+    # line.set_data(valores_tiempo, valores_velocidad_x)
+    # vel x
+    g1.set_xlabel("tiempo [s]")
+    g1.set_ylabel("pos en x [m]")
+    g1.set_title("pos en x")
+    l1.set_data(valores_tiempo, valores_x)
+    g1.relim()
+    g1.autoscale_view()
+    # vel x
+    g2.set_xlabel("tiempo [s]")
+    g2.set_ylabel("pos en y [m]")
+    g2.set_title("pos en y")
+    l2.set_data(valores_tiempo, valores_y)
+    g2.relim()
+    g2.autoscale_view()
+    # vel x
+    g3.set_xlabel("tiempo [s]")
+    g3.set_ylabel("velocidad en x [m/s]")
+    g3.set_title("velocidad en x")
+    l3.set_data(valores_tiempo, valores_velocidad_x)
+    g3.relim()
+    g3.autoscale_view()
+    # vel x
+    g4.set_xlabel("tiempo [s]")
+    g4.set_ylabel("velocidad en y [m/s]")
+    g4.set_title("velocidad en y")
+    l4.set_data(valores_tiempo, valores_velocidad_y)
+    g4.relim()
+    g4.autoscale_view()
+    # vel x
+    g5.set_xlabel("pos x [m]")
+    g5.set_ylabel("pos y [m]")
+    g5.set_title("trayectoria")
+    l5.set_data(valores_tiempo, valores_velocidad_x)
+    g5.relim()
+    g5.autoscale_view()
+    # vel x
+    g6.set_xlabel("tiempo [s]")
+    g6.set_ylabel("velocidad en y [m/s]")
+    g6.set_title("velocidad en y")
+    l6.set_data(valores_tiempo, valores_velocidad_y)
+    g6.relim()
+    g6.autoscale_view()
+
+    return line
+
+
+animation = anim.FuncAnimation(fig, update, interval=50, cache_frame_data=False)  # type: ignore
+plt.show()
+
+# while True:
+#     ajustarPsi()
+#     actualizarPosicion()
+#     time.sleep(1)
+#     Subspace.definirContexto(None)
+#     pos = b.vecOrigen()
+#     # Subspace.definirContexto(ab)
+#     pos2 = ab.vecOrigen()
+#     time.sleep(1)
+#     # print("------------------------------")
+#     # print("b.x: {}, b.y: {}, b.z: {}".format(pos[0], pos[1], pos[2]))
+#     # print("ab.x: {}, ab.y: {}, ab.z: {}".format(pos2[0], pos2[1], pos2[2]))
