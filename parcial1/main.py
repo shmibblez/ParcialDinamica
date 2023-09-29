@@ -40,20 +40,18 @@ tolerancia = 0.001  # 0.001 (1mm)
 dt = 1
 
 
-piso = Subspace(0, 0, 0, 0, 0, 0, None)
+piso = Subspace(0, 0, 0, 0, 0, 0, None, "piso")
 # posiciones y angulo en y depende de posicion de la bici
-b = Subspace(10, 10, 10, 0, 0, theta, piso)
-# bv se encarga de voltear bici
-bv = Subspace(0, 0, 0, 0, 0, theta, b)
+b = Subspace(0, 0, 0, 0, 0, theta, piso, "b")
 # posiciones de marco ab no cambian
 # angulo cambia dependiendo de angulo de manuvrio (rueda delantera debe tocar piso)
-ab = Subspace(0, 0, 0, 0, -psi, 0, bv)
+ab = Subspace(0, 0, 0, 0, -psi, 0, b, "ab")
 # posiciones de marco f no cambian
 # angulo decidido por beta (angulo tenedor)
-f = Subspace(l, 0, r, 0, -beta, 0, ab)
+f = Subspace(l, 0, r, 0, -beta, 0, ab, "f")
 # posiciones de marco af no cambian
 # cambia dependiendo de rotacion manuvrio
-af = Subspace(0, 0, 0, 0, 0, phi, f)
+af = Subspace(0, 0, 0, 0, 0, phi, f, "af")
 
 
 def encontrarPuntoRuedaDelantera():
@@ -67,8 +65,12 @@ def encontrarPuntoRuedaDelantera():
     # un vector unitario en cordenada z negativo (hacia abajo)
     z_dn = np.array([0, 0, -1])
     # vectores para definir plano afx-afz en espacio base (v1 y v2)
-    v1 = Punto(1, 0, 0, af).puntoAbs()[1].p()
-    v2 = Punto(0, 0, 1, af).puntoAbs()[1].p()
+    v1 = np.subtract(
+        Punto(1, 0, 0, af).puntoAbs().p(), Punto(0, 0, 0, af).puntoAbs().p()
+    )
+    v2 = np.subtract(
+        Punto(0, 0, 1, af).puntoAbs().p(), Punto(0, 0, 0, af).puntoAbs().p()
+    )
     # time.sleep(1)
     # print("encontrarPuntoRuedaDelantera(), v1: {}".format(v1))
     # proyectar z_dn a plano v1-v2. Esta proyeccion se utiliza para encontrar el
@@ -94,7 +96,7 @@ def ajustarPsi():
     # correr maximo 10 veces
     while n < 20:
         # punto en centro de af (centro de rueda delantera)
-        centro_rueda = Punto(0, 0, 0, f).puntoAbs()[0].p()
+        centro_rueda = Punto(0, 0, 0, f).puntoAbs().p()
         v3 = encontrarPuntoRuedaDelantera()
         # vector de origen a punto que deberia tocar piso (dentro de plano afx-afz)
         v4 = centro_rueda + v3
@@ -118,11 +120,16 @@ def ajustarPsi():
         # si rueda de bici esta dentro de rango, no hay
         # necesidad de rotar bici, terminar de ajustar
         if np.abs(v4[2]) <= tolerancia:
+            print("ajustarPsi(), v3: {}, centro rueda: {}".format(v3, centro_rueda))
             break
         # interseccion entre planos abz-abx y el plano formado por by-v4
         # el eje y del plano ab es ortogonal a abz-abx
-        ort1 = Punto(0, 1, 0, ab).puntoAbs()[1].p()
-        b_y = Punto(0, 1, 0, b).puntoAbs()[1].p()
+        ort1 = np.subtract(
+            Punto(0, 1, 0, ab).puntoAbs().p(), Punto(0, 0, 0, ab).puntoAbs().p()
+        )
+        b_y = np.subtract(
+            Punto(0, 1, 0, b).puntoAbs().p(), Punto(0, 0, 0, b).puntoAbs().p()
+        )
         ort2 = np.cross(b_y, v4)
         # v5 es interseccion de planos
         v5 = np.cross(ort1, ort2)
@@ -176,13 +183,13 @@ def actualizarPosicion():
     v3 = encontrarPuntoRuedaDelantera()
     Subspace.definirContexto(b)
     # representar plano bx-by
-    v4 = Punto(1, 0, 0, b).puntoAbs()[1].p()
-    v5 = Punto(0, 1, 0, b).puntoAbs()[1].p()
+    v4 = Punto(1, 0, 0, b).puntoAbs().p()
+    v5 = Punto(0, 1, 0, b).puntoAbs().p()
     # proyectar v3 a plano v4-v5
     proy = v4 * (np.dot(v4, v3)) + v5 * (np.dot(v5, v3))
     # angulo entre eje y de b y proy
-    b_y = Punto(0, 1, 0, b).puntoAbs()[1].p()
-    centro_rueda = Punto(0, 0, 0, f).puntoAbs()[0].p()
+    b_y = Punto(0, 1, 0, b).puntoAbs().p()
+    centro_rueda = Punto(0, 0, 0, f).puntoAbs().p()
     v6 = centro_rueda + v3
     x1 = v6[0]
     y1 = v6[1]
@@ -210,21 +217,24 @@ def actualizarPosicion():
         theta -= 360
     # b.x += 1
     # b.y += 1
-    b.az += 45
+    b.az += 95
     time.sleep(1)
-    Subspace.definirContexto(None)
-    print(
-        "YEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
-    )
-    print(
-        "actualizarPosicion(), b: {}, b.angulos: {}, b->piso: {}".format(
-            [b.x, b.y, b.z], [b.ax, b.ay, b.az], Punto(1, 1, 1, b).puntoAbs()[1].p()
-        )
-    )
-    print(
-        "ZZZZZZZZZZZYEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
-    )
-    exit()
+    Subspace.definirContexto(f)
+    # print(
+    #     "YEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
+    # )
+    # print(
+    #     "actualizarPosicion(), b: {}, b.angulos: {}, b->piso (start): {}, b->piso (vec): {}".format(
+    #         b.vecOrigen(),
+    #         [b.ax, b.ay, b.az],
+    #         Punto(0, 0, 0, f).puntoAbs()[0].p(),
+    #         Punto(0, 0, 0, f).puntoAbs()[1].p(),
+    #     )
+    # )
+    # print(
+    #     "ZZZZZZZZZZZYEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
+    # )
+    # exit()
 
 
 # fig = plt.figure()
@@ -264,12 +274,14 @@ def actualizarPosicion():
 # plt.show()
 
 while True:
-    actualizarPosicion()
     ajustarPsi()
+    actualizarPosicion()
+    time.sleep(1)
     Subspace.definirContexto(None)
     pos = b.vecOrigen()
     # Subspace.definirContexto(ab)
     pos2 = ab.vecOrigen()
+    time.sleep(1)
     # print("------------------------------")
     # print("b.x: {}, b.y: {}, b.z: {}".format(pos[0], pos[1], pos[2]))
     # print("ab.x: {}, ab.y: {}, ab.z: {}".format(pos2[0], pos2[1], pos2[2]))

@@ -3,7 +3,15 @@ from pyquaternion import Quaternion
 
 
 class Subspace:
-    __contexto__: "Subspace | None" = None
+    contexto: "Subspace | None" = None
+
+    @staticmethod
+    def getNombreContexto():
+        return Subspace.contexto.nombre if Subspace.contexto else None
+
+    @staticmethod
+    def getContexto():
+        return Subspace.contexto
 
     def __init__(
         self,
@@ -14,6 +22,7 @@ class Subspace:
         ay: float,
         az: float,
         parentSpace: "Subspace|None",
+        nombre: str,
     ):
         """
         x, y, z - posicion de origen en parent
@@ -30,6 +39,7 @@ class Subspace:
         self.ax = ax
         self.ay = ay
         self.az = az
+        self.nombre = nombre
 
     @staticmethod
     def definirContexto(contexto):
@@ -37,12 +47,12 @@ class Subspace:
         define subespacio base (afecta los resultados
         retornados para posiciones absolutas)
         """
-        Subspace.__contexto__ = contexto
+        Subspace.contexto = contexto
 
     def vecOrigen(self):
         return Subspace.__aplicar__(
             [self.x, self.y, self.z],
-            Subspace.__contexto__,
+            Subspace.contexto,
         )
 
     def vecOrigenRel(self):
@@ -79,7 +89,9 @@ class Subspace:
         if sub == None:
             # print(">saliendo aplicar")
             return np.array(punto)
+        # print("p sin aplicar: {}".format(punto))
         subVec = Subspace.__aplicar__(punto, sub.parent)
+        # print("p aplicado   : {}".format(subVec))
         # restar origen
         # print("0antes aplicar: {}".format(aplicado))
         subVec = np.subtract(subVec, [sub.x, sub.y, sub.z])
@@ -100,7 +112,7 @@ class Subspace:
         lleva vector a este subespacio
         (aplica sistema de coordenadas)
         """
-        p = Subspace.__aplicar__(punto, self.parent)
+        p = Subspace.__aplicar__(punto, self)
         return Punto(p[0], p[1], p[2], self)
 
 
@@ -123,18 +135,17 @@ class Punto:
                 vector in top-most space is the same as vector in subspace,
                 just in top-most space (diff coordinate system)
         """
-        start = [0, 0, 0]
+        # start = [0, 0, 0]
         vec = [self.x, self.y, self.z]
         parentSpace: Subspace | None = self.parentSpace
         # print("parentSpace: " + str(parentSpace))
-        while parentSpace != None:
-            # print("parent space origen abs: {}".format(parentSpace.vecOrigen()))
-            # print("parent space origen rel: {}".format(parentSpace.vecOrigenRel().p()))
+        while parentSpace != None and parentSpace != Subspace.getContexto():
+            # print("vec: {}, sub: {}".format(vec, parentSpace.nombre))
             xQuat = Quaternion(axis=[1, 0, 0], degrees=-parentSpace.ax)
             yQuat = Quaternion(axis=[0, 1, 0], degrees=-parentSpace.ay)
             zQuat = Quaternion(axis=[0, 0, 1], degrees=-parentSpace.az)
             # add parent vec to start
-            start = np.add(np.array(start), parentSpace.vecOrigen())
+            # start = np.add(np.array(start), parentSpace.vecOrigen())
             # no toca rotar punto de referencia
             # start = xQuat.rotate(start)
             # start = yQuat.rotate(start)
@@ -143,16 +154,20 @@ class Punto:
             vec = xQuat.rotate(vec)
             vec = yQuat.rotate(vec)
             vec = zQuat.rotate(vec)
+            # print("vec after rotate: {}, sub: {}".format(vec, parentSpace.nombre))
+            vec = np.add(np.array(vec), parentSpace.vecOrigenRel().p())
+            # print("vec after add: {}, sub: {}".format(vec, parentSpace.nombre))
             parentSpace = parentSpace.parent
 
-        start = np.array(start)
+        # start = np.array(start)
         vec = np.array(vec)
-        start = Subspace.__aplicar__(start, Subspace.__contexto__)
-        vec = Subspace.__aplicar__(vec, Subspace.__contexto__)
-        return (
-            Punto(start[0], start[1], start[2], Subspace.__contexto__),
-            Punto(vec[0], vec[1], vec[2], Subspace.__contexto__),
-        )
+        # start = Subspace.__aplicar__(start, Subspace.__contexto__)
+        # vec = Subspace.__aplicar__(vec, Subspace.contexto)
+        return Punto(vec[0], vec[1], vec[2], Subspace.contexto)
+        # (
+        # Punto(start[0], start[1], start[2], Subspace.__contexto__),
+        # Punto(vec[0], vec[1], vec[2], Subspace.__contexto__)
+        # )
 
     def p(self):
         """
