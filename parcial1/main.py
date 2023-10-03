@@ -18,9 +18,9 @@ sys.setrecursionlimit(100)
 # parametros bici (longitud en metros, angulos en grados,
 # tiempo en segundos, velocidad angular en deg/s)
 # (variable - seleccionar) angulo de inclinacion / roll
-rho = 40  # [-45, 45]
+rho = -40  # [-45, 45]
 # (variable - seleccionar) angulo manuvrio
-phi = 40  # [-40, 40]
+phi = -40  # [-40, 40]
 # (variable - seleccionar) velocidad angular rueda trasera
 omega = 100  # [0.1, 100]
 # (constante) longitud entre ruedas
@@ -72,7 +72,6 @@ def encontrarPuntoRuedaDelantera():
         Punto(0, 0, 1, af).puntoAbs().p(), Punto(0, 0, 0, af).puntoAbs().p()
     )
     # time.sleep(1)
-    # print("encontrarPuntoRuedaDelantera(), v1: {}".format(v1))
     # proyectar z_dn a plano v1-v2. Esta proyeccion se utiliza para encontrar el
     # punto mas bajo de la rueda (donde tocaria el piso)
     proy = v1 * (np.dot(v1, z_dn)) + v2 * (np.dot(v2, z_dn))
@@ -80,8 +79,13 @@ def encontrarPuntoRuedaDelantera():
     proy = proy / lin.norm(proy)
     # la linea que toca el piso en la rueda (spoke en rueda de bici)
     v3 = proy * r
-    # v3 va de centro_rueda delantera
-    return np.array(v3, float)
+    # v3 va de centro de b a centro_rueda delantera
+    Subspace.definirContexto(b)
+    start = Punto(0, 0, 0, f).p()
+    v3 = np.add(np.array(v3, float), [start[0], start[1], 0])
+    print("encontrarPuntoRuedaDelantera(), v3: {}".format(v3))
+
+    return v3
 
 
 def ajustarPsi():
@@ -217,11 +221,15 @@ def actualizarPosicion():
     omega_centro_instantaneo = radio * v_rueda_trasera
     # cambio de angulo en dt
     dtheta = omega_centro_instantaneo * dt
+    # print("dtheta: {}, radio: {}, v3: {}, proy: {}".format(dtheta, radio, v3, proy))
+    # print("v3: {}, proy: {}".format(v3, proy))
+
     zQuat = Quaternion(axis=[0, 0, 1], degrees=dtheta)
     rotado = np.array(zQuat.rotate([0, v6[0] + radio, 0]))
     rotado = np.abs(rotado)
     dx = rotado[0]
-    dy = -rotado[1] if phi < 0 else rotado[1]
+    dy = rotado[1]
+    # dy = -rotado[1] if phi < 0 else rotado[1]
 
     # vector de velocidad
     v7 = Punto(1, 0, 0, b).puntoAbs().p()
@@ -238,14 +246,13 @@ def actualizarPosicion():
     valores_theta.append(theta)
     valores_velocidad_x.append(v_rueda_trasera * np.cos(np.deg2rad(theta)))
     valores_velocidad_y.append(v_rueda_trasera * np.sin(np.deg2rad(theta)))
-    if theta > 360:
-        theta -= 360
+    if abs(theta) > 360:
+        theta %= 360
     b.x += 10 * np.cos(np.deg2rad(b.az))
     b.y += 10 * np.sin(np.deg2rad(b.az))
     b.az = theta
     valores_x.append(b.x)
     valores_y.append(b.y)
-    print("theta: {}, v_rueda_trasera: {}".format(theta, v_rueda_trasera))
     Subspace.definirContexto(piso)
     global valores_tiempo
 
@@ -332,7 +339,7 @@ def update(frame):
     g5.set_xlabel("pos x [m]")
     g5.set_ylabel("pos y [m]")
     g5.set_title("trayectoria")
-    l5.set_data(valores_tiempo, valores_velocidad_x)
+    l5.set_data(valores_x, valores_y)
     g5.relim()
     g5.autoscale_view()
     # vel x
